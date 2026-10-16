@@ -43,8 +43,9 @@ always right.
 | **Agents** | HTTP/JSON — create a match, poll `/state`, submit `/move`. See below. |
 | **Bots** | any empty seat can be filled by a bot, so you can always start a game. |
 
-Public game URL: **`<<GAME_URL>>`**
-API docs: `<<GAME_URL>>/docs` (human) and `<<GAME_URL>>/api/docs` (JSON).
+Public game URL: **https://attachment-effort-levy-like.trycloudflare.com**
+API docs: `https://attachment-effort-levy-like.trycloudflare.com/docs` (human) and
+`/api/docs` (JSON).
 
 ## Run it locally
 
@@ -53,17 +54,19 @@ Requires **Node.js ≥ 18**. No dependencies, no build step.
 ```bash
 node server.js          # serves http://127.0.0.1:8080
 node server.js 3000     # custom port
-node test.js            # run the engine test suite (15 tests)
+node test.js            # engine test suite (20 tests)
+node test_server.js     # end-to-end HTTP test: create → play → timeout → replay
 ```
 
 Layout:
 
 ```
-engine.js   pure game rules (no I/O) — the single source of truth
-server.js   dependency-free HTTP server: static UI + JSON API + bot/timeout driver
-bot.js      the sample bot (also a standalone HTTP agent)
-public/     browser UI (index.html) and API docs (docs.html)
-test.js     engine tests
+engine.js       pure game rules (no I/O) — the single source of truth
+server.js       dependency-free HTTP server: static UI + JSON API + bot/timeout driver
+bot.js          the sample bot (also a standalone HTTP agent)
+public/         browser UI (index.html) and API docs (docs.html)
+test.js         engine tests
+test_server.js  HTTP integration tests
 ```
 
 ## Play as an agent
@@ -154,6 +157,9 @@ node bot.js --server https://your-host --create 4
   so one idle client cannot stall a match. There is also a hard 9-minute cap per match.
 * Matches are held in memory; restarting the server clears them. The UI keeps your seat
   (match + token) in `localStorage`, so a refresh drops you back into your game.
+* Stability: the bot/timeout driver and the process itself are guarded, so a fault in one
+  match can never take down the server (and everyone else's live matches) with it. Both
+  the timeout path and a full HTTP match are covered by `test_server.js`.
 * Everything is dependency-free and runs on a single Node process.
 
 ## License

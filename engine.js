@@ -407,4 +407,5 @@ module.exports = {
   START_ENERGY, INCOME_PER_TILE, CRYSTALS, STARTS,
   createMatch, join, addBot, start, legalActions, validate, apply, endTurn,
   publicState, standings, countTiles, boardFull, findSeat, checkEnd, token,
+  log, finish, makeCode, neighbors, territoryFrontier, strikeTargets, emptyTiles,
 };

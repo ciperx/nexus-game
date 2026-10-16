@@ -208,4 +208,44 @@ test('costs are the documented ones', () => {
   assert.strictEqual(engine.INCOME_PER_TILE, 1);
 });
 
+test('every engine symbol the server and bot use is exported', () => {
+  // Regression guard: a missing export only shows up at runtime (and only on the
+  // path that uses it), which is how the log helper crashed the server on a turn
+  // timeout. Parse the callers and assert every referenced member resolves.
+  const fs = require('fs');
+  const path = require('path');
+  const seen = new Set();
+  for (const f of ['server.js', 'bot.js', 'test.js']) {
+    const src = fs.readFileSync(path.join(__dirname, f), 'utf8');
+    for (const m of src.matchAll(/\bengine\.([A-Za-z_][A-Za-z0-9_]*)/g)) seen.add(m[1]);
+  }
+  assert.ok(seen.size > 5, 'should find engine usages');
+  for (const name of seen) {
+    assert.ok(name in engine, `engine.${name} is used but not exported`);
+  }
+  assert.strictEqual(typeof engine.log, 'function');
+});
+
+test('a human turn that times out is auto-resolved as mine and logged', () => {
+  const m = fresh(2);
+  const seat = m.turn;
+  const tiles = engine.countTiles(m, seat);
+  // This is exactly what server.js autoPlay(state, true) does on the timeout path.
+  engine.log(m, { kind: 'timeout', seat });
+  engine.apply(m, seat, { type: 'mine' });
+  const last = m.log[m.log.length - 1];
+  assert.ok(m.log.some((e) => e.kind === 'timeout' && e.seat === seat), 'timeout should be logged');
+  assert.ok(m.players[seat].energy > engine.START_ENERGY, 'mine should have paid +3');
+  assert.strictEqual(engine.countTiles(m, seat), tiles, 'mine takes no territory');
+  assert.ok(last, 'log is append-only');
+});
+
+test('publicState never leaks another seat\'s token', () => {
+  const m = fresh(3);
+  const view = engine.publicState(m, 0);
+  const tokens = m.players.map((p) => p.token);
+  const blob = JSON.stringify(view);
+  for (const t of tokens) assert.ok(!blob.includes(t), 'token leaked in public state');
+});
+
 console.log(`\n${passed} tests passed${process.exitCode ? ' (with failures)' : ''}`);

@@ -83,18 +83,27 @@ function autoPlay(state, timedOut) {
 }
 
 function tick() {
-  const now = Date.now();
-  for (const m of matches.values()) {
-    if (m.phase !== 'active') continue;
-    if (m.turnDeadline && now > m.turnDeadline) { autoPlay(m, true); m.botAt = 0; continue; }
-    const cur = m.players[m.turn];
-    if (cur && cur.type === 'bot') {
-      if (!m.botAt) m.botAt = now + 650;
-      if (now >= m.botAt) { m.botAt = 0; autoPlay(m, false); }
-    } else { m.botAt = 0; }
+  try {
+    const now = Date.now();
+    for (const m of matches.values()) {
+      if (m.phase !== 'active') continue;
+      if (m.turnDeadline && now > m.turnDeadline) { autoPlay(m, true); m.botAt = 0; continue; }
+      const cur = m.players[m.turn];
+      if (cur && cur.type === 'bot') {
+        if (!m.botAt) m.botAt = now + 650;
+        if (now >= m.botAt) { m.botAt = 0; autoPlay(m, false); }
+      } else { m.botAt = 0; }
+    }
+  } catch (e) {
+    // A single bad match must never take the server down for everyone else.
+    console.error('tick error:', e && e.stack || e);
   }
 }
 setInterval(tick, 400);
+
+// Last-resort guards: the process stays up so live matches survive.
+process.on('uncaughtException', (e) => console.error('uncaughtException:', e && e.stack || e));
+process.on('unhandledRejection', (e) => console.error('unhandledRejection:', e && e.stack || e));
 
 function gc() {
   const now = Date.now();

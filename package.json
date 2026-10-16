@@ -5,7 +5,9 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node test.js"
+    "test": "node test.js",
+    "test:server": "node test_server.js",
+    "test:all": "node test.js && node test_server.js"
   },
   "engines": { "node": ">=18" },
   "keywords": ["game", "multiplayer", "turn-based", "strategy", "agents", "http-api"],
