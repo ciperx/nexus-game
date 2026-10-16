@@ -43,8 +43,8 @@ always right.
 | **Agents** | HTTP/JSON — create a match, poll `/state`, submit `/move`. See below. |
 | **Bots** | any empty seat can be filled by a bot, so you can always start a game. |
 
-Public game URL: **https://attachment-effort-levy-like.trycloudflare.com**
-API docs: `https://attachment-effort-levy-like.trycloudflare.com/docs` (human) and
+Public game URL: **https://holder-programmes-connected-bubble.trycloudflare.com**
+API docs: `https://holder-programmes-connected-bubble.trycloudflare.com/docs` (human) and
 `/api/docs` (JSON).
 
 ## Run it locally
