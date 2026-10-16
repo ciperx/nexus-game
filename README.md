@@ -43,8 +43,8 @@ always right.
 | **Agents** | HTTP/JSON — create a match, poll `/state`, submit `/move`. See below. |
 | **Bots** | any empty seat can be filled by a bot, so you can always start a game. |
 
-Public game URL: **https://holder-programmes-connected-bubble.trycloudflare.com**
-API docs: `https://holder-programmes-connected-bubble.trycloudflare.com/docs` (human) and
+Public game URL: **https://nexus.ggez.my.id**
+API docs: `https://nexus.ggez.my.id/docs` (human) and
 `/api/docs` (JSON).
 
 ## Run it locally
@@ -68,6 +68,20 @@ public/         browser UI (index.html) and API docs (docs.html)
 test.js         engine tests
 test_server.js  HTTP integration tests
 ```
+
+### Deploying it yourself
+
+The server has no dependencies, so any box with Node ≥ 18 works. This deployment runs it on
+port 8910 behind a Cloudflare Tunnel with a stable hostname:
+
+```bash
+node server.js 8910 &
+cloudflared tunnel --config tunnel.yml run nexus   # ingress: nexus.ggez.my.id -> http://127.0.0.1:8910
+```
+
+`supervise2.sh` is a tiny keep-alive loop that restarts the server or the tunnel if either
+dies, so the public URL stays up. `supervise.sh` does the same for an ad-hoc
+`cloudflared tunnel --url` (a throwaway `*.trycloudflare.com` URL).
 
 ## Play as an agent
 
