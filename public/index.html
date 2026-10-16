@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>NEXUS — turn-based strategy for humans &amp; agents</title>
+<style>
+  :root{
+    --bg:#0b0f17; --panel:#121826; --panel2:#0f1521; --line:#1e293b;
+    --txt:#e5e7eb; --dim:#94a3b8; --accent:#38bdf8;
+    --p0:#38bdf8; --p1:#f472b6; --p2:#facc15; --p3:#4ade80;
+    --crystal:#a78bfa;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1200px 700px at 70% -10%,#16233b 0%,var(--bg) 55%);
+    color:var(--txt);font:15px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+  a{color:var(--accent)}
+  .wrap{max-width:1080px;margin:0 auto;padding:20px}
+  header{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+  h1{font-size:26px;margin:0;letter-spacing:.14em;font-weight:800}
+  h1 span{color:var(--accent)}
+  .tag{color:var(--dim);font-size:13px}
+  .card{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);
+    border-radius:14px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+  .col{display:flex;flex-direction:column;gap:12px}
+  button{cursor:pointer;border:1px solid var(--line);background:#1b2436;color:var(--txt);
+    padding:9px 14px;border-radius:10px;font-weight:600;font-size:14px}
+  button:hover{border-color:var(--accent)}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  button.primary{background:var(--accent);color:#04202f;border-color:transparent}
+  button.ghost{background:transparent}
+  input{background:#0c1220;border:1px solid var(--line);color:var(--txt);padding:9px 12px;border-radius:10px;font-size:14px}
+  .grid{display:grid;grid-template-columns:minmax(320px,1fr) 320px;gap:16px}
+  @media(max-width:820px){.grid{grid-template-columns:1fr}}
+  .board{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;aspect-ratio:1/1;max-width:520px}
+  .tile{position:relative;border-radius:10px;border:1px solid var(--line);background:#0d1421;
+    display:flex;align-items:center;justify-content:center;cursor:default;transition:transform .06s,box-shadow .12s}
+  .tile.clickable{cursor:pointer}
+  .tile.clickable:hover{transform:translateY(-1px);box-shadow:0 0 0 2px var(--accent) inset}
+  .tile .own{position:absolute;inset:0;border-radius:9px;opacity:.9}
+  .tile .dot{width:46%;height:46%;border-radius:50%;background:#0b0f17;opacity:.55}
+  .tile .crystal{position:absolute;font-size:18px;filter:drop-shadow(0 0 6px var(--crystal))}
+  .tile .shield{position:absolute;top:4px;right:6px;font-size:12px}
+  .tile.sel{box-shadow:0 0 0 2px #fff inset}
+  .p0{background:var(--p0)} .p1{background:var(--p1)} .p2{background:var(--p2)} .p3{background:var(--p3)}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;
+    background:#0d1421;border:1px solid var(--line);font-size:13px}
+  .swatch{width:10px;height:10px;border-radius:3px;display:inline-block}
+  .log{max-height:230px;overflow:auto;font-size:13px;color:var(--dim);display:flex;flex-direction:column;gap:3px}
+  .log b{color:var(--txt);font-weight:600}
+  .muted{color:var(--dim)}
+  .score{display:flex;flex-direction:column;gap:8px}
+  .score .line{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .turn{font-weight:700;color:var(--accent)}
+  .banner{padding:10px 14px;border-radius:10px;background:#0d1421;border:1px solid var(--line)}
+  .hidden{display:none!important}
+  code{background:#0c1220;border:1px solid var(--line);padding:2px 6px;border-radius:6px;font-size:13px}
+  .code{font-size:22px;letter-spacing:.28em;font-weight:800;color:var(--accent)}
+  .timer{font-variant-numeric:tabular-nums;font-weight:700}
+  .flash{animation:flash .5s}
+  @keyframes flash{from{background:#1b2436}to{background:#0d1421}}
+  footer{margin-top:18px;color:var(--dim);font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>NEX<span>US</span></h1>
+    <span class="tag">turn-based territory strategy · humans &amp; agents in the same match</span>
+  </header>
+
+  <!-- LOBBY / HOME -->
+  <section id="home" class="grid">
+    <div class="card col">
+      <h2 style="margin:0">Play</h2>
+      <p class="muted" style="margin:0">Claim the most tiles on a 6×6 board. One action per turn: <b>grow</b>, <b>strike</b>, <b>fortify</b> or <b>mine</b>. Grab crystals for a burst of energy. When the board fills (or after 20 rounds) the player with the most tiles wins.</p>
+      <div class="row">
+        <input id="pname" placeholder="your name" value="Human" style="width:150px" />
+        <label class="muted">players
+          <select id="pseats" style="background:#0c1220;color:var(--txt);border:1px solid var(--line);border-radius:10px;padding:8px">
+            <option>2</option><option selected>3</option><option>4</option>
+          </select>
+        </label>
+        <button class="primary" id="createBtn">Create match</button>
+      </div>
+      <div class="row">
+        <input id="joincode" placeholder="match code (e.g. 7KQ2M)" style="width:190px;text-transform:uppercase" />
+        <button id="joinBtn">Join by code</button>
+      </div>
+      <div class="row">
+        <button class="ghost" id="watchBtn">Watch a live match</button>
+        <span class="muted" id="homeMsg"></span>
+      </div>
+      <details><summary class="muted">Rules in one paragraph</summary>
+        <p class="muted">Each of 2–4 players starts on a corner with 1 tile and 5 energy. On your turn pick exactly one action: <b>grow</b> (4 energy — claim an empty tile adjacent to your territory), <b>strike</b> (2 energy — raze an adjacent enemy tile back to neutral, denying them the tile and its income), <b>fortify</b> (1 energy — shield one of your tiles for one round) or <b>mine</b> (free — gain 3 energy). At the end of your turn you gain +1 energy per tile you own. Four crystals sit in the middle; claiming one pays +3 energy immediately. The match ends when the board is full or after 20 rounds; whoever owns the most tiles wins, ties broken by energy.</p>
+      </details>
+    </div>
+    <div class="card col">
+      <h2 style="margin:0">Play as an agent</h2>
+      <p class="muted" style="margin:0">Everything the UI does is available over HTTP/JSON — read state, submit moves, poll for your turn.</p>
+      <pre style="background:#0c1220;border:1px solid var(--line);border-radius:10px;padding:12px;overflow:auto;font-size:12.5px;margin:0">POST /api/matches          {"seats":2}
+GET  /api/matches/:id/state?token=T
+POST /api/matches/:id/move  {"token":"T",
+   "action":{"type":"grow","to":[1,1]}}</pre>
+      <div class="row">
+        <a href="/docs" target="_blank">Full API docs →</a>
+        <a href="/api/docs" target="_blank">/api/docs (JSON)</a>
+      </div>
+      <p class="muted" style="margin:0">Sample bot: <code>node bot.js --server &lt;url&gt; --join &lt;id|code&gt;</code></p>
+    </div>
+  </section>
+
+  <!-- LOBBY -->
+  <section id="lobby" class="card col hidden">
+    <div class="row" style="justify-content:space-between">
+      <h2 style="margin:0">Lobby</h2>
+      <span>match code <span class="code" id="lobbyCode">—</span>
+        <button class="ghost" id="copyLink" style="margin-left:8px">copy invite link</button></span>
+    </div>
+    <div id="lobbySeats" class="score"></div>
+    <div class="row">
+      <button id="addBotBtn">Add bot</button>
+      <button class="primary" id="startBtn">Start match</button>
+      <span class="muted" id="lobbyMsg"></span>
+    </div>
+  </section>
+
+  <!-- GAME -->
+  <section id="game" class="grid hidden">
+    <div class="card col">
+      <div class="row" style="justify-content:space-between">
+        <div id="turnInfo" class="banner">waiting…</div>
+        <div class="timer" id="timer"></div>
+      </div>
+      <div class="board" id="board"></div>
+      <div class="row" id="actions">
+        <button id="mineBtn">⛏ Mine (+3)</button>
+        <button id="fortifyBtn">🛡 Fortify mode</button>
+        <button class="ghost" id="cancelBtn">Cancel</button>
+        <span class="muted" id="hint"></span>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card col">
+        <h3 style="margin:0">Standings</h3>
+        <div id="standings" class="score"></div>
+        <div class="muted" id="roundInfo"></div>
+      </div>
+      <div class="card col">
+        <h3 style="margin:0">Match log</h3>
+        <div id="log" class="log"></div>
+      </div>
+      <div class="card col">
+        <h3 style="margin:0">Match</h3>
+        <div class="muted" id="matchMeta"></div>
+        <div class="row">
+          <button class="ghost" id="replayBtn">View replay (JSON)</button>
+          <button class="ghost" id="leaveBtn">Leave</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>NEXUS · built for the Taskmarket bounty “Build a Fun Multiplayer Strategy Game for Agents AND Humans”.</footer>
+</div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const api = async (m, p, b) => (await fetch(p, {method:m, headers:{'content-type':'application/json'}, body:b?JSON.stringify(b):undefined})).json();
+const PLAYER_COLORS = ['#38bdf8','#f472b6','#facc15','#4ade80'];
+
+let S = { id:null, token:null, seat:null, mode:'auto', last:null, poll:null };
+
+function save(){ if(S.id) localStorage.setItem('nexus', JSON.stringify({id:S.id, token:S.token, seat:S.seat})); }
+function load(){ try{ return JSON.parse(localStorage.getItem('nexus')||'null'); }catch{ return null; } }
+
+function show(id){ ['home','lobby','game'].forEach(x=>$('#'+x).classList.toggle('hidden', x!==id)); }
+
+/* ---------------- home ---------------- */
+$('#createBtn').onclick = async () => {
+  const r = await api('POST','/api/matches',{seats:Number($('#pseats').value), name:$('#pname').value||'Human'});
+  if(!r.ok) return $('#homeMsg').textContent = r.error;
+  S.id=r.data.id; S.token=r.data.token; S.seat=r.data.seat; save(); enter();
+};
+$('#joinBtn').onclick = async () => {
+  const code = $('#joincode').value.trim().toUpperCase();
+  if(!code) return;
+  const r = await api('POST',`/api/matches/${code}/join`,{name:$('#pname').value||'Human'});
+  if(!r.ok) return $('#homeMsg').textContent = r.error;
+  S.id=code; S.token=r.data.token; S.seat=r.data.seat; save(); enter();
+};
+$('#watchBtn').onclick = async () => {
+  const r = await api('GET','/api/matches');
+  const live = (r.data?.matches||[]).find(m=>m.phase!=='finished');
+  if(!live) return $('#homeMsg').textContent = 'no live matches right now';
+  S.id=live.id; S.token=null; S.seat=null; enter();
+};
+
+function enter(){ $('#lobbyCode').textContent=''; show('game'); startPoll(); }
+
+/* ---------------- render ---------------- */
+function startPoll(){ if(S.poll) clearInterval(S.poll); S.poll=setInterval(refresh, 800); refresh(); }
+
+async function refresh(){
+  if(!S.id) return;
+  const q = S.token ? `?token=${S.token}` : '';
+  const r = await api('GET',`/api/matches/${S.id}/state${q}`);
+  if(!r.ok){ show('home'); return; }
+  const d = r.data; S.last=d;
+  if(d.phase==='lobby'){ renderLobby(d); show('lobby'); }
+  else { renderGame(d); show('game'); }
+  $('#lobbyCode').textContent = d.code;
+}
+
+function renderLobby(d){
+  $('#lobbySeats').innerHTML = '';
+  for(let s=0;s<d.seats;s++){
+    const p = d.players.find(x=>x.seat===s);
+    const el = document.createElement('div');
+    el.className='line';
+    el.innerHTML = `<span class="pill"><span class="swatch" style="background:${PLAYER_COLORS[s]}"></span>seat ${s+1}</span>
+      <span>${p? (p.name + (p.type==='bot'?' 🤖':'')) : '<span class="muted">empty</span>'}</span>`;
+    $('#lobbySeats').appendChild(el);
+  }
+  $('#startBtn').disabled = !(S.seat===0 || !S.token);
+  $('#addBotBtn').disabled = d.players.length>=d.seats;
+}
+
+$('#addBotBtn').onclick = async()=>{ await api('POST',`/api/matches/${S.id}/bot`,{}); refresh(); };
+$('#startBtn').onclick = async()=>{ const r=await api('POST',`/api/matches/${S.id}/start`,{token:S.token});
+  if(!r.ok) $('#lobbyMsg').textContent=r.error; refresh(); };
+$('#copyLink').onclick = ()=>{ const u=`${location.origin}/?m=${S.last.code}`;
+  navigator.clipboard?.writeText(u); $('#lobbyMsg').textContent='link copied: '+u; };
+
+function renderGame(d){
+  const myTurn = d.phase==='active' && d.turn===S.seat;
+  $('#turnInfo').innerHTML = d.phase==='finished'
+    ? `<b>Match over</b> — ${d.winner===null?'draw':'seat '+(d.winner+1)+' wins'} (${d.endReason})`
+    : (myTurn? `<span class="turn">Your turn</span> — pick one action`
+             : (S.seat===null? `Watching — seat ${d.turn+1} to move` : `Waiting — seat ${d.turn+1} to move`));
+  const dl = d.turnDeadline ? Math.max(0, Math.round((d.turnDeadline-Date.now())/1000)) : null;
+  $('#timer').textContent = d.phase==='active' && dl!==null ? dl+'s' : '';
+
+  // board
+  const b = $('#board'); b.innerHTML='';
+  const legal = d.legalActions||[];
+  const can = (a)=> legal.some(x=>x.type===a);
+  for(let r=0;r<d.size;r++) for(let c=0;c<d.size;c++){
+    const t=d.board[r][c];
+    const el=document.createElement('div'); el.className='tile';
+    if(t.owner!==null){ const o=document.createElement('div'); o.className='own p'+t.owner; el.appendChild(o); }
+    if(t.crystal){ const k=document.createElement('div'); k.className='crystal'; k.textContent='◆'; el.appendChild(k); }
+    if(t.fortified){ const s=document.createElement('div'); s.className='shield'; s.textContent='🛡'; el.appendChild(s); }
+    const grow = legal.some(a=>a.type==='grow'&&a.to[0]===r&&a.to[1]===c);
+    const strike = legal.some(a=>a.type==='strike'&&a.to[0]===r&&a.to[1]===c);
+    const fort = legal.some(a=>a.type==='fortify'&&a.at[0]===r&&a.at[1]===c);
+    if(myTurn && (grow||strike||fort)) el.classList.add('clickable');
+    if(S.mode==='fortify' && fort) el.classList.add('clickable');
+    el.title = t.owner===null? 'empty' : 'seat '+(t.owner+1);
+    el.onclick = ()=>{
+      if(!myTurn) return;
+      if(S.mode==='fortify' && fort) return move({type:'fortify', at:[r,c]});
+      if(grow) return move({type:'grow', to:[r,c]});
+      if(strike) return move({type:'strike', to:[r,c]});
+      if(fort) return move({type:'fortify', at:[r,c]});
+    };
+    b.appendChild(el);
+  }
+
+  // actions
+  $('#mineBtn').disabled = !myTurn || !can('mine');
+  $('#fortifyBtn').disabled = !myTurn || !can('fortify');
+  $('#hint').textContent = myTurn ? 'click a highlighted tile, or mine' : '';
+
+  // standings
+  const st = $('#standings'); st.innerHTML='';
+  const order = [...d.players].sort((a,b)=> b.tiles-a.tiles || b.energy-a.energy);
+  order.forEach(p=>{
+    const el=document.createElement('div'); el.className='line';
+    el.innerHTML=`<span class="pill"><span class="swatch" style="background:${PLAYER_COLORS[p.seat]}"></span>${p.name}${p.type==='bot'?' 🤖':''}${p.seat===S.seat?' (you)':''}</span>
+      <span><b>${p.tiles}</b> tiles · ${p.energy}⚡</span>`;
+    if(d.phase==='active' && d.turn===p.seat) el.querySelector('.pill').style.boxShadow='0 0 0 2px var(--accent)';
+    st.appendChild(el);
+  });
+  $('#roundInfo').textContent = `round ${d.round} / ${d.maxRounds}`;
+
+  // log
+  const lg=$('#log'); lg.innerHTML='';
+  (d.log||[]).slice(-40).reverse().forEach(e=>{
+    const el=document.createElement('div');
+    let txt='';
+    if(e.kind==='join') txt=`seat ${e.seat+1} joined (${e.type})`;
+    else if(e.kind==='start') txt='match started';
+    else if(e.kind==='action') txt=`seat ${e.seat+1} ${e.action}: ${e.detail}`;
+    else if(e.kind==='income') txt=`seat ${e.seat+1} +${e.gain} income (${e.energy}⚡)`;
+    else if(e.kind==='timeout') txt=`seat ${e.seat+1} timed out → auto-mine`;
+    else if(e.kind==='end') txt=`match ended: ${e.reason}`;
+    el.innerHTML=`<span class="muted">r${e.round}</span> ${txt}`;
+    lg.appendChild(el);
+  });
+
+  $('#matchMeta').innerHTML = `id <code>${d.id.slice(0,8)}…</code> · code <code>${d.code}</code><br>${d.players.length} players · ${d.phase}`;
+}
+
+function move(action){ api('POST',`/api/matches/${S.id}/move`,{token:S.token, action}).then(refresh); }
+$('#mineBtn').onclick=()=>move({type:'mine'});
+$('#fortifyBtn').onclick=()=>{ S.mode = S.mode==='fortify'?'auto':'fortify'; $('#hint').textContent = S.mode==='fortify'?'click one of your tiles to fortify':'click a highlighted tile, or mine'; };
+$('#cancelBtn').onclick=()=>{ S.mode='auto'; refresh(); };
+$('#replayBtn').onclick=async()=>{ const r=await api('GET',`/api/matches/${S.id}/replay`); window.open('data:application/json,'+encodeURIComponent(JSON.stringify(r.data,null,2))); };
+$('#leaveBtn').onclick=()=>{ localStorage.removeItem('nexus'); S={mode:'auto'}; if(S.poll)clearInterval(S.poll); show('home'); };
+
+/* resume / deep link */
+(function(){
+  const q = new URLSearchParams(location.search).get('m');
+  const saved = load();
+  if(q){ S.id=q; S.token=null; S.seat=null; enter(); }
+  else if(saved && saved.id){ S.id=saved.id; S.token=saved.token; S.seat=saved.seat; enter(); }
+})();
+</script>
+</body>
+</html>

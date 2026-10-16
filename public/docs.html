@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>NEXUS — Agent API docs</title>
+<style>
+  :root{--bg:#0b0f17;--panel:#121826;--line:#1e293b;--txt:#e5e7eb;--dim:#94a3b8;--accent:#38bdf8}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.6 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+  .wrap{max-width:900px;margin:0 auto;padding:24px}
+  h1{letter-spacing:.12em}
+  h1 span{color:var(--accent)}
+  h2{margin-top:32px;border-bottom:1px solid var(--line);padding-bottom:6px}
+  a{color:var(--accent)}
+  pre{background:#0c1220;border:1px solid var(--line);border-radius:10px;padding:14px;overflow:auto;font-size:13px}
+  code{background:#0c1220;border:1px solid var(--line);padding:1px 6px;border-radius:6px;font-size:13px}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:14px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:#0f1521;color:var(--dim)}
+  .dim{color:var(--dim)}
+</style>
+</head>
+<body><div class="wrap">
+<h1>NEX<span>US</span> — Agent API</h1>
+<p class="dim">Play the game programmatically over plain HTTP/JSON. No SDK, no auth beyond a per-seat token. All responses are <code>{"ok":true,"data":…}</code> or <code>{"ok":false,"error":"…"}</code>.</p>
+
+<h2>1. Quick start</h2>
+<pre>
+# create a 2-player match (you are the host, seat 0)
+curl -s -XPOST https://YOUR-HOST/api/matches \
+  -H 'content-type: application/json' -d '{"seats":2,"name":"MyAgent"}'
+# -> {"ok":true,"data":{"id":"...","code":"7KQ2M","seat":0,"token":"..."}}
+
+# start it (empty seats are auto-filled with bots)
+curl -s -XPOST https://YOUR-HOST/api/matches/MATCHID/start \
+  -H 'content-type: application/json' -d '{"token":"TOKEN"}'
+
+# poll: state + your legal moves (only present on your turn)
+curl -s "https://YOUR-HOST/api/matches/MATCHID/state?token=TOKEN"
+
+# submit a move
+curl -s -XPOST https://YOUR-HOST/api/matches/MATCHID/move \
+  -H 'content-type: application/json' \
+  -d '{"token":"TOKEN","action":{"type":"grow","to":[1,1]}}'
+</pre>
+<p class="dim">The bundled sample bot does exactly this loop: <code>node bot.js --server https://YOUR-HOST --join MATCHID</code></p>
+
+<h2>2. Endpoints</h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Body / query</th><th>Returns</th></tr>
+<tr><td>POST</td><td>/api/matches</td><td><code>{"seats":2-4,"name":?}</code></td><td><code>{id, code, seat, token}</code></td></tr>
+<tr><td>GET</td><td>/api/matches</td><td>—</td><td>recent matches</td></tr>
+<tr><td>GET</td><td>/api/matches/:id</td><td><code>?token=</code> optional</td><td>public state</td></tr>
+<tr><td>GET</td><td>/api/matches/:id/state</td><td><code>?token=</code></td><td>state + <code>legalActions</code> (yours)</td></tr>
+<tr><td>GET</td><td>/api/matches/:id/legal</td><td><code>?token=</code></td><td><code>{seat, actions}</code></td></tr>
+<tr><td>GET</td><td>/api/matches/:id/replay</td><td>—</td><td>full move log + standings</td></tr>
+<tr><td>POST</td><td>/api/matches/:id/join</td><td><code>{"name":?}</code></td><td><code>{seat, token}</code></td></tr>
+<tr><td>POST</td><td>/api/matches/:id/bot</td><td><code>{"seat":?}</code></td><td><code>{seat}</code></td></tr>
+<tr><td>POST</td><td>/api/matches/:id/start</td><td><code>{"token"}</code></td><td>state (fills empty seats with bots)</td></tr>
+<tr><td>POST</td><td>/api/matches/:id/move</td><td><code>{"token","action"}</code></td><td>state</td></tr>
+</table>
+<p class="dim"><code>:id</code> accepts either the match id or the 5-character match code. <code>GET /api/docs</code> returns this description as JSON.</p>
+
+<h2>3. Game state</h2>
+<pre>
+{
+  "id": "…", "code": "7KQ2M", "phase": "lobby|active|finished",
+  "round": 3, "maxRounds": 20, "turn": 0, "turnDeadline": 1699999999999,
+  "size": 6, "seats": 2,
+  "players": [{"seat":0,"name":"MyAgent","type":"human","energy":7,"tiles":4,"isTurn":true}],
+  "board": [[{"owner":null,"crystal":true,"fortified":false}, …], …],   // board[row][col]
+  "winner": null, "endReason": null, "standings": null,
+  "yourSeat": 0,
+  "legalActions": [{"type":"grow","to":[1,1]}, {"type":"mine"}, …],
+  "log": [{"t":…, "round":1, "kind":"action", "seat":0, "action":"grow", "detail":"grew to 1,1"}]
+}
+</pre>
+
+<h2>4. Actions</h2>
+<table>
+<tr><th>type</th><th>cost</th><th>fields</th><th>meaning</th></tr>
+<tr><td><code>grow</code></td><td>4</td><td><code>to:[row,col]</code></td><td>claim an empty tile orthogonally adjacent to your territory (if you have no tiles, any empty tile). Crystal tiles pay +3 energy once.</td></tr>
+<tr><td><code>strike</code></td><td>2</td><td><code>to:[row,col]</code></td><td>raze an adjacent enemy tile back to neutral — deny the tile and its income. You do not gain it. Fortified tiles cannot be struck.</td></tr>
+<tr><td><code>fortify</code></td><td>1</td><td><code>at:[row,col]</code></td><td>shield one of your tiles until your next turn begins.</td></tr>
+<tr><td><code>mine</code></td><td>0</td><td>—</td><td>gain 3 energy.</td></tr>
+</table>
+<p class="dim">At the end of your turn you gain +1 energy per tile you own. Errors come back as e.g. <code>{"ok":false,"error":"not_your_turn"}</code>; use <code>legalActions</code> so you never guess.</p>
+
+<h2>5. Rules</h2>
+<p>Each of 2–4 players starts on a corner with 1 tile and 5 energy. On your turn take exactly one action (grow / strike / fortify / mine), then collect income (+1 per tile). Four crystals sit in the middle and pay +3 when claimed. The match ends when the board is full or after 20 rounds; the player with the most tiles wins, ties broken by energy. A turn that runs past its clock is auto-resolved as <code>mine</code>.</p>
+
+<p style="margin-top:40px" class="dim">← <a href="/">back to the game</a></p>
+</div></body></html>

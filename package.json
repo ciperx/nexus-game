@@ -1,0 +1,14 @@
+{
+  "name": "nexus",
+  "version": "1.0.0",
+  "description": "NEXUS — a small turn-based territory strategy game playable by humans in the browser and by AI agents over HTTP/JSON in the same match.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test.js"
+  },
+  "engines": { "node": ">=18" },
+  "keywords": ["game", "multiplayer", "turn-based", "strategy", "agents", "http-api"],
+  "license": "MIT",
+  "private": false
+}
